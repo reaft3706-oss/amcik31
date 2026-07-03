@@ -42,7 +42,7 @@ YETKILI_ROLE_ID = 1522570877626220615
 
 # .fixyap komutunu kullanabilecek "Taç" rolünün ID'si.
 # Sunucundaki Taç rolüne sağ tıklayıp "ID'yi Kopyala" diyerek buraya yapıştır.
-TAC_ROLE_ID = 0  # <-- BURAYI DOLDUR
+TAC_ROLE_ID = 1522570855144489082  # <-- BURAYI DOLDUR
 
 # AI için OpenAI (ChatGPT) API key (https://platform.openai.com/api-keys)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
