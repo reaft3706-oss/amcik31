@@ -51,7 +51,42 @@ DATA_FILE = "data.json"
 PREFIX = "."
 
 # FC26'daki ana nitelikler (Türkçe)
-NITELIKLER = ["Hız", "Şut", "Pas", "Dribling", "Defans", "Fizik"]
+NITELIKLER = [
+    "Hızlanma",
+    "Sprint Hızı",
+    "Pozisyon Alma",
+    "Bitiricilik",
+    "Şut Gücü",
+    "Uzaktan Şut",
+    "Vole",
+    "Penaltı",
+    "Oyun Görüşü",
+    "Orta Açma",
+    "Frikik İsabeti",
+    "Kısa Pas",
+    "Uzun Pas",
+    "Falso",
+    "Çeviklik",
+    "Denge",
+    "Tepki",
+    "Top Kontrolü",
+    "Dribling",
+    "Soğukkanlılık",
+    "Pas Arası",
+    "Kafa Vuruşu",
+    "Savunma Pozisyonu",
+    "Ayakta Müdahale",
+    "Kayarak Müdahale",
+    "Zıplama",
+    "Dayanıklılık",
+    "Güç",
+    "Agresiflik",
+    "Kaleci Uzanışı",
+    "Top Tutma",
+    "Degaj",
+    "Kaleci Pozisyonu",
+    "Kaleci Refleksleri"
+]
 
 def nitelik_dogrula(girilen: str):
     """Kullanıcının yazdığı nitelik adını resmi listeyle eşleştirir (büyük/küçük harf duyarsız)."""
