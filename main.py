@@ -25,6 +25,12 @@ from datetime import datetime, timezone
 import discord
 from discord.ext import commands
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()  # proje klasöründeki .env dosyasını otomatik okur
+except ImportError:
+    pass  # python-dotenv kurulu değilse sorun yok, ortam değişkenleri yine çalışır
+
 # =========================================================
 #                        CONFIG
 # =========================================================
@@ -38,11 +44,22 @@ YETKILI_ROLE_ID = 1522570877626220615
 # Sunucundaki Taç rolüne sağ tıklayıp "ID'yi Kopyala" diyerek buraya yapıştır.
 TAC_ROLE_ID = 0  # <-- BURAYI DOLDUR
 
-# AI için Anthropic API key (https://console.anthropic.com)
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+# AI için OpenAI (ChatGPT) API key (https://platform.openai.com/api-keys)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 DATA_FILE = "data.json"
 PREFIX = "."
+
+# FC26'daki ana nitelikler (Türkçe)
+NITELIKLER = ["Hız", "Şut", "Pas", "Dribling", "Defans", "Fizik"]
+
+def nitelik_dogrula(girilen: str):
+    """Kullanıcının yazdığı nitelik adını resmi listeyle eşleştirir (büyük/küçük harf duyarsız)."""
+    girilen_temiz = girilen.strip()
+    for n in NITELIKLER:
+        if n.casefold() == girilen_temiz.casefold():
+            return n
+    return None
 
 # =========================================================
 #                     VERİ YÖNETİMİ
@@ -168,16 +185,10 @@ async def s(ctx: commands.Context, hedef: discord.Member = None):
     )
     embed.set_thumbnail(url=hedef.display_avatar.url)
 
-    if kalici:
-        kalici_metin = "\n".join(f"**{k}:** {v}" for k, v in sorted(kalici.items()))
-    else:
-        kalici_metin = "Henüz kalıcı nitelik yok."
+    kalici_metin = "\n".join(f"**{n}:** {kalici.get(n, 0)}" for n in NITELIKLER)
     embed.add_field(name="🏆 Kalıcı Nitelikler", value=kalici_metin, inline=False)
 
-    if haftalik:
-        haftalik_metin = "\n".join(f"**{k}:** {v}" for k, v in sorted(haftalik.items()))
-    else:
-        haftalik_metin = "Bu hafta henüz nitelik kazanılmadı."
+    haftalik_metin = "\n".join(f"**{n}:** {haftalik.get(n, 0)}" for n in NITELIKLER)
     embed.add_field(name="📅 Bu Haftaki Nitelikler", value=haftalik_metin, inline=False)
 
     toplam_kalici = sum(kalici.values()) if kalici else 0
@@ -199,6 +210,13 @@ async def nitver(ctx: commands.Context, hedef: discord.Member, nitelik: str, mik
         await ctx.reply("⚠️ Miktar pozitif bir sayı olmalı.")
         return
 
+    nitelik_gecerli = nitelik_dogrula(nitelik)
+    if nitelik_gecerli is None:
+        liste = ", ".join(NITELIKLER)
+        await ctx.reply(f"⚠️ Geçersiz nitelik: **{nitelik}**\nGeçerli nitelikler: {liste}")
+        return
+    nitelik = nitelik_gecerli
+
     veri = kullanici_al(hedef.id)
     veri["haftalik"][nitelik] = veri["haftalik"].get(nitelik, 0) + miktar
     veri_kaydet(VERI)
@@ -216,6 +234,13 @@ async def nital(ctx: commands.Context, hedef: discord.Member, nitelik: str, mikt
     if miktar <= 0:
         await ctx.reply("⚠️ Miktar pozitif bir sayı olmalı.")
         return
+
+    nitelik_gecerli = nitelik_dogrula(nitelik)
+    if nitelik_gecerli is None:
+        liste = ", ".join(NITELIKLER)
+        await ctx.reply(f"⚠️ Geçersiz nitelik: **{nitelik}**\nGeçerli nitelikler: {liste}")
+        return
+    nitelik = nitelik_gecerli
 
     veri = kullanici_al(hedef.id)
     mevcut = veri["haftalik"].get(nitelik, 0)
@@ -290,7 +315,7 @@ async def haftaliktop(ctx: commands.Context):
         madalya = madalyalar[i] if i < 3 else f"#{i+1}"
         uye = ctx.guild.get_member(int(uid))
         isim = uye.display_name if uye else f"Kullanıcı ({uid})"
-        detay = ", ".join(f"{k}: +{v}" for k, v in sorted(haftalik.items(), key=lambda x: -x[1]))
+        detay = ", ".join(f"{n}: +{haftalik[n]}" for n in NITELIKLER if n in haftalik)
         embed.add_field(
             name=f"{madalya} {isim} — Toplam: {toplam}",
             value=detay,
@@ -324,25 +349,24 @@ async def aikapat(ctx: commands.Context):
 #                          .ai
 # =========================================================
 
-async def claude_yanit_al(mesaj: str) -> str:
-    """Anthropic API üzerinden yanıt alır. API key ayarlanmadıysa uyarı döner."""
-    if not ANTHROPIC_API_KEY:
-        return "⚠️ ANTHROPIC_API_KEY ayarlanmamış, AI şu an cevap veremiyor."
+async def chatgpt_yanit_al(mesaj: str) -> str:
+    """OpenAI (ChatGPT) API üzerinden yanıt alır. API key ayarlanmadıysa uyarı döner."""
+    if not OPENAI_API_KEY:
+        return "⚠️ OPENAI_API_KEY ayarlanmamış, AI şu an cevap veremiyor."
 
     try:
-        import anthropic
+        from openai import OpenAI
     except ImportError:
-        return "⚠️ `anthropic` kütüphanesi kurulu değil. `pip install anthropic` çalıştır."
+        return "⚠️ `openai` kütüphanesi kurulu değil. `pip install openai` çalıştır."
 
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenAI(api_key=OPENAI_API_KEY)
     try:
-        response = client.messages.create(
-            model="claude-sonnet-4-6",
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",  # istersen "gpt-4o" gibi başka bir modelle değiştirebilirsin
             max_tokens=500,
             messages=[{"role": "user", "content": mesaj}],
         )
-        parcalar = [b.text for b in response.content if b.type == "text"]
-        return "\n".join(parcalar) if parcalar else "🤖 (boş yanıt)"
+        return response.choices[0].message.content or "🤖 (boş yanıt)"
     except Exception as e:
         return f"⚠️ AI isteğinde hata oluştu: {e}"
 
@@ -358,7 +382,7 @@ async def ai(ctx: commands.Context, *, mesaj: str = None):
         return
 
     async with ctx.typing():
-        cevap = await claude_yanit_al(mesaj)
+        cevap = await chatgpt_yanit_al(mesaj)
 
     await ctx.reply(cevap[:2000])  # Discord mesaj sınırı
 
